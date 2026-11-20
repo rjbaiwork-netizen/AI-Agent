@@ -1,19 +1,46 @@
-# Setup Guide — Personal Bot & AI Agent (GitHub Only Architecture)
+# Setup Guide — Personal Bot & AI Agent
 
-এই প্রজেক্টটি সম্পূর্ণ নিজের একার ব্যবহারের (Single-user) জন্য তৈরি। এতে কোনো লগইন বা মাল্টি-ইউজার জটিলতা নেই। শুধুমাত্র GitHub ব্যবহার করে ফ্রন্টএন্ড, ব্যাকএন্ড ও ফাইল-ভিত্তিক স্টোরেজ পরিচালনা করা হয়—যেখানে ব্যাকএন্ডের জন্য **GitHub Actions** ও **GitHub Codespaces** ব্যবহৃত হয়।
+এই প্রজেক্টটি একক ব্যক্তিগত ব্যবহারের জন্য। এখানে কোনো login বা multi-user account ব্যবস্থা নেই। GitHub repository-এর `main` branch-ই canonical source; কোনো API key বা secret source control-এ commit করবেন না।
 
-## ১. GitHub Repository ও Branch নিয়ম
-- মূল ও একমাত্র ব্রাঞ্চ হলো `main`। নতুন কোনো ব্রাঞ্চ তৈরি না করে সব আপডেট সরাসরি `main` ব্রাঞ্চে রাখুন।
-- কোনো API Key বা গোপন তথ্য কোডে বা রিপোজিটরিতে সরাসরি যুক্ত করবেন না।
+## GitHub Codespaces setup
 
-## ২. Root `.github/workflows/` সেটআপ
-- GitHub Actions স্বয়ংক্রিয়ভাবে চালাতে workflow ফাইলগুলো রিপোজিটরির Root-এর `.github/workflows/` ফোল্ডারে রাখুন (`scheduled-tasks.yml`, `brain-reverify.yml`, `backup-sync.yml`)।
-- `personal-bot-agent/.github/workflows/`-এ কোনো ডুপ্লিকেট ফাইল থাকলে তা পরিষ্কার রাখুন।
+1. `rjbaiwork-netizen/AI-Agent` repository থেকে Codespace খুলুন।
+2. Terminal-এ চালান:
 
-## ৩. GitHub Codespaces-এ চালানোর নিয়ম
-1. `rjbaiwork-netizen/AI-Agent` রিপোজিটরি থেকে **GitHub Codespaces** চালু করুন।
-2. নিচের কমান্ড দিয়ে প্রয়োজনীয় প্যাকেজ ইনস্টল ও কনফিগারেশন ফাইল প্রস্তুত করুন:
    ```bash
-   cd personal-bot-agent
-   pip install -r requirements.txt
-   cp .env.example .env
+   cd /workspaces/AI-Agent/personal-bot-agent
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
+   if [ ! -f .env ]; then cp .env.example .env; fi
+   ```
+
+3. `.env`-এ প্রয়োজনমতো `APP_HOST=0.0.0.0` এবং `APP_PORT=8000` রাখুন। Gemini ব্যবহার করতে চাইলে Codespaces secret বা স্থানীয় ignored `.env`-এ `GEMINI_API_KEY` দিন। key কখনো repository-তে commit করবেন না।
+4. সার্ভার চালান:
+
+   ```bash
+   python app.py
+   ```
+
+5. Codespaces Ports ট্যাবে 8000 port-টি Private রাখুন। UI-তে health, chat, notes, tasks, brains এবং logs যাচাই করুন।
+
+## API endpoints
+
+- `GET /` — dashboard UI
+- `GET /api/health` — system and configuration status (secret values প্রকাশ করে না)
+- `POST /api/chat` — `{"message":"system status"}`
+- `GET/POST /api/notes` — note listing and creation
+- `GET/POST /api/tasks` — task listing and creation
+- `POST /api/tasks/<task_id>/complete` — task completion
+- `GET /api/brains`, `POST /api/brains/reverify` — brain integrity
+- `GET /api/logs` — recent bot log and JSONL traces
+
+## Local validation
+
+   ```bash
+   python -m compileall -q bot agent app.py
+   python -m json.tool bot/rules.json >/dev/null
+   ```
+
+## Storage and privacy
+
+Application records are stored in `data/notes.json`, `data/tasks.json`, `data/brain_versions/`, `logs/bot.log`, and `logs/trace.jsonl`. Do not store credentials or private tokens in notes, logs, or trace payloads. GitHub Actions workflows may commit operational records to `main`; review their permissions and visibility before storing sensitive personal content.

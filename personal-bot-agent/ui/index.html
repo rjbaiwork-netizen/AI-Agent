@@ -1,1 +1,97 @@
-<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Personal Bot Agent</title><link rel='stylesheet' href='styles.css'></head><body><main><header><p>PRIVATE WORKSPACE</p><h1>Personal Bot Agent</h1><span id='health'>Connecting…</span></header><section><h2>Ask your agent</h2><form id='chat-form'><textarea id='message' required placeholder='Ask or describe a task'></textarea><button>Send</button></form><pre id='response'>Response appears here.</pre></section><section><h2>Quick notes</h2><form id='note-form'><input id='note' required maxlength='2000' placeholder='A note to keep'><button>Save note</button></form><ul id='notes'></ul></section></main><script src='app.js'></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Personal Bot Agent</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+  <script src="/ui/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PRIVATE · SINGLE-USER WORKSPACE</p>
+        <h1>Personal Bot Agent</h1>
+        <p class="muted">Your notes, tasks, brain integrity and assistant console.</p>
+      </div>
+      <div class="health-card" aria-live="polite">
+        <span id="health-indicator" class="status-dot warning"></span>
+        <div><strong id="health-label">Checking system…</strong><small id="gemini-label">Gemini: checking</small></div>
+        <button id="refresh-status" class="button secondary" type="button">Refresh status</button>
+      </div>
+    </header>
+
+    <div id="global-error" class="alert hidden" role="alert"></div>
+    <main>
+      <section class="panel chat-panel">
+        <div class="section-heading"><div><p class="eyebrow">ASSISTANT</p><h2>Chat &amp; Agent Console</h2></div><span id="chat-state" class="status-pill">Ready</span></div>
+        <div class="quick-actions" aria-label="Quick commands">
+          <button type="button" class="chip" data-command="system status">Health</button>
+          <button type="button" class="chip" data-command="list tasks">Tasks</button>
+          <button type="button" class="chip" data-command="list notes">Notes</button>
+          <button type="button" class="chip" data-command="verify brains">Brains</button>
+          <button type="button" class="chip" data-command="show logs">Logs</button>
+        </div>
+        <form id="chat-form">
+          <label for="chat-message">Message</label>
+          <textarea id="chat-message" rows="3" maxlength="8000" placeholder="Ask a question or enter a command…" required></textarea>
+          <div class="form-footer"><small class="muted">Fast commands are handled locally; other requests are passed to the Agent.</small><button id="send-chat" class="button primary" type="submit">Send message</button></div>
+        </form>
+        <div class="response-wrap">
+          <div class="section-heading compact"><h3>Response</h3><span id="response-status" class="status-pill">No request yet</span></div>
+          <div id="chat-response" class="response" aria-live="polite">Your assistant response will appear here.</div>
+          <div id="chat-meta" class="meta-row"></div>
+          <ol id="plan-steps" class="plan-steps"></ol>
+        </div>
+      </section>
+
+      <div class="two-column">
+        <section class="panel">
+          <div class="section-heading"><div><p class="eyebrow">PERSONAL MEMORY</p><h2>Notes Manager</h2></div><span id="notes-count" class="count">0</span></div>
+          <form id="note-form" class="stack-form">
+            <label for="note-title">Title</label><input id="note-title" maxlength="300" placeholder="Note title" required>
+            <label for="note-content">Content</label><textarea id="note-content" rows="3" maxlength="10000" placeholder="Write your note…" required></textarea>
+            <label for="note-tags">Tags <span class="muted">(comma separated)</span></label><input id="note-tags" placeholder="work, idea, personal">
+            <button id="save-note" class="button primary" type="submit">Save note</button>
+          </form>
+          <div id="notes-list" class="record-list" aria-live="polite"><p class="muted">Loading notes…</p></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading"><div><p class="eyebrow">PERSONAL WORKFLOW</p><h2>Tasks Manager</h2></div><span id="tasks-count" class="count">0</span></div>
+          <form id="task-form" class="stack-form">
+            <label for="task-title">Task title</label><input id="task-title" maxlength="500" placeholder="What needs to be done?" required>
+            <div class="form-grid">
+              <div><label for="task-priority">Priority</label><select id="task-priority"><option value="normal">Normal</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+              <div><label for="task-due">Due (optional)</label><input id="task-due" placeholder="e.g. 2026-12-01"></div>
+            </div>
+            <button id="save-task" class="button primary" type="submit">Add task</button>
+          </form>
+          <div id="tasks-list" class="record-list" aria-live="polite"><p class="muted">Loading tasks…</p></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="section-heading"><div><p class="eyebrow">KNOWLEDGE INTEGRITY</p><h2>Brains &amp; Logs</h2></div><button id="reverify-brains" class="button secondary" type="button">Re-verify brains</button></div>
+        <div class="tabs" role="tablist" aria-label="System detail panels">
+          <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="brains-panel">Brains</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="logs-panel">Logs &amp; traces</button>
+        </div>
+        <div id="brains-panel" class="tab-panel" role="tabpanel">
+          <div id="brains-list" class="brain-list"><p class="muted">Loading brain status…</p></div>
+          <pre id="brain-report" class="code-view">No verification report loaded.</pre>
+        </div>
+        <div id="logs-panel" class="tab-panel hidden" role="tabpanel">
+          <div class="section-heading compact"><h3>bot.log</h3><button id="refresh-logs" class="button small secondary" type="button">Refresh logs</button></div>
+          <pre id="bot-log" class="code-view">Loading log…</pre>
+          <div class="section-heading compact"><h3>trace.jsonl</h3></div>
+          <pre id="trace-log" class="code-view">Loading traces…</pre>
+        </div>
+      </section>
+    </main>
+    <footer><span>Personal Bot Agent</span><span>Private single-user workspace · No account system</span></footer>
+  </div>
+</body>
+</html>
