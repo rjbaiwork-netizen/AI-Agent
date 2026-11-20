@@ -2,48 +2,175 @@ name: Brain Re-verification
 
 on:
   push:
+    branches:
+      - main
     paths:
-      - 'personal-bot-agent/agent/brains/**'
-      - 'personal-bot-agent/bot/rules.json'
+      - "personal-bot-agent/agent/brains/**"
+      - "personal-bot-agent/bot/rules.json"
+      - "personal-bot-agent/agent/reverify.py"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: personal-bot-agent-main-write
+  cancel-in-progress: false
+
 jobs:
   reverify-brains:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: personal-bot-agent
     steps:
-      - name: Checkout repository
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: personal-bot-agent/requirements.txt
 
       - name: Install dependencies
         run: |
+          set -Eeuo pipefail
+          echo "Installing personal-bot-agent dependencies..."
           python -m pip install --upgrade pip
-          pip install -r personal-bot-agent/requirements.txt
+          python -m pip install -r requirements.txt
+          echo "Dependencies installed successfully."
 
-      - name: Run Brain Re-verification
+      - name: Verify all seven brain files and write version report
+        env:
+          PYTHONPATH: .
         run: |
-          python -c "
-          import sys
-          sys.path.insert(0, 'personal-bot-agent')
+          set -Eeuo pipefail
+          echo "Checking required brain files and running agent.reverify.reverify_all_brains()..."
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import traceback
+          from datetime import datetime, timezone
+          from pathlib import Path
+
           from agent.reverify import reverify_all_brains
-          report = reverify_all_brains()
-          print('Re-verification summary:', report.get('summary'))
-          assert report.get('ok', False), f'Re-verification failed: {report}'
-          "
 
-      - name: Commit verification reports and logs
+          required = [
+              "common_base.md",
+              "notes_routine.md",
+              "project_logic.md",
+              "logs_issues.md",
+              "research_live.md",
+              "coding_security.md",
+              "writing_drafts.md",
+          ]
+          brain_dir = Path("agent/brains")
+          missing = [name for name in required if not (brain_dir / name).is_file()]
+          if missing:
+              raise SystemExit("ERROR: Required brain file(s) missing: " + ", ".join(missing))
+
+          try:
+              result = reverify_all_brains()
+              if not isinstance(result, dict) or result.get("ok") is not True:
+                  raise RuntimeError(f"reverify_all_brains() reported failure: {result!r}")
+
+              timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+              stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+              files = {}
+              for name in required:
+                  path = brain_dir / name
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                      raise RuntimeError(f"Invalid SHA-256 digest generated for {name}")
+                  files[name] = {
+                      "path": str(path),
+                      "sha256": digest,
+                      "status": "verified",
+                      "size_bytes": path.stat().st_size,
+                  }
+
+              output_dir = Path("data/brain_versions")
+              logs_dir = Path("logs")
+              output_dir.mkdir(parents=True, exist_ok=True)
+              logs_dir.mkdir(parents=True, exist_ok=True)
+              report = {
+                  "schema_version": 1,
+                  "verified_at": timestamp,
+                  "status": "success",
+                  "summary": f"Successfully verified {len(files)} required brain files.",
+                  "files": files,
+                  "verification": {
+                      "function": "agent.reverify.reverify_all_brains",
+                      "ok": result["ok"],
+                      "summary": result.get("summary"),
+                  },
+              }
+
+              serialized = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+              (output_dir / "latest.json").write_text(serialized, encoding="utf-8")
+              version_path = output_dir / f"verification-{stamp}.json"
+              version_path.write_text(serialized, encoding="utf-8")
+
+              trace = {
+                  "timestamp": timestamp,
+                  "event_type": "brain_reverify",
+                  "status": "success",
+                  "summary": report["summary"],
+                  "details": {
+                      "file_count": len(files),
+                      "report": str(output_dir / "latest.json"),
+                      "version_report": str(version_path),
+                      "files": files,
+                  },
+              }
+              with (logs_dir / "trace.jsonl").open("a", encoding="utf-8") as handle:
+                  handle.write(json.dumps(trace, ensure_ascii=False, sort_keys=True) + "\n")
+
+              print(report["summary"])
+              for name, info in files.items():
+                  print(f"{name}: {info['status']} sha256={info['sha256']}")
+              print(f"Latest report: {output_dir / 'latest.json'}")
+              print(f"Version report: {version_path}")
+          except Exception:
+              print("ERROR: Brain re-verification failed.", flush=True)
+              traceback.print_exc()
+              raise
+          PY
+          echo "Brain verification reports and JSONL trace generated."
+
+      - name: Commit and safely push reports to main
+        working-directory: .
         run: |
+          set -Eeuo pipefail
+          echo "Checking verification report/log changes..."
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add personal-bot-agent/data/brain_versions/ personal-bot-agent/logs/
-          if ! git diff --staged --quiet; then
-            git commit -m "chore(brain): run automated re-verification report"
-            git push origin main
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- personal-bot-agent/data/brain_versions/ personal-bot-agent/logs/
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+            exit 0
           fi
+          git commit -m "chore(brain): record automated re-verification"
+          for attempt in 1 2 3; do
+            echo "Push attempt ${attempt}/3: rebasing onto origin/main..."
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "ERROR: Rebase conflict; refusing to overwrite remote main."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Brain verification reports pushed to main."
+              exit 0
+            fi
+            echo "Push attempt ${attempt} did not succeed; will retry after fetching."
+            sleep $((attempt * 2))
+          done
+          echo "ERROR: Could not push verification reports after 3 safe attempts."
+          exit 1
