@@ -40,17 +40,48 @@ app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
-# Restrict cross-origin browser access to this project's GitHub Pages frontend.
+# CORS is restricted to the Pages site and local/Codespaces development origins.
+from urllib.parse import urlsplit
+
 PAGES_ORIGIN = "https://rjbaiwork-netizen.github.io"
 
+
+def _cors_origin_allowed(origin):
+    if not origin:
+        return False
+    try:
+        parsed = urlsplit(origin)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return False
+        if parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
+            return False
+        host = (parsed.hostname or "").lower().rstrip(".")
+        if origin == PAGES_ORIGIN:
+            return True
+        if host in {"localhost", "127.0.0.1", "::1"}:
+            return True
+        return host.endswith(".app.github.dev") or host.endswith(".github.dev")
+    except ValueError:
+        return False
+
+
+@app.before_request
+def handle_api_preflight():
+    if request.path.startswith("/api/") and request.method == "OPTIONS":
+        return ("", 204)
+
+
 @app.after_request
-def add_pages_cors_headers(response):
-    if request.headers.get("Origin") == PAGES_ORIGIN:
-        response.headers["Access-Control-Allow-Origin"] = PAGES_ORIGIN
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers.add("Vary", "Origin")
+def add_api_cors_headers(response):
+    if request.path.startswith("/api/"):
+        origin = request.headers.get("Origin", "")
+        if _cors_origin_allowed(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response.headers["Access-Control-Max-Age"] = "600"
+            response.headers.add("Vary", "Origin")
     return response
 
 

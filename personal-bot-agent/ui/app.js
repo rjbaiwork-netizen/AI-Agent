@@ -3,33 +3,66 @@ const $ = (id) => document.getElementById(id);
 const state = { busy: new Set(), notes: [], tasks: [], brains: null, logs: null, backendUrl: "" };
 const BACKEND_STORAGE_KEY = "personal-bot-agent-backend-url";
 const isPagesHost = location.hostname === "rjbaiwork-netizen.github.io";
-function loadBackendUrl() {
-  try { state.backendUrl = localStorage.getItem(BACKEND_STORAGE_KEY) || ""; } catch (_) { state.backendUrl = ""; }
-  if (!state.backendUrl && !isPagesHost) state.backendUrl = location.origin;
-  $("backend-url").value = state.backendUrl;
-  updateBackendStatus(state.backendUrl ? "Backend URL saved; checking…" : "Backend not configured. Connect a running Flask server.");
+function normalizeBackendUrl(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) throw new Error("Enter your Flask backend URL.");
+  let parsed;
+  try { parsed = new URL(trimmed); } catch (_) { throw new Error("Backend URL is invalid. Paste the complete HTTPS Codespaces forwarded URL."); }
+  if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("Use a valid backend URL without username, password, query string or fragment.");
+  }
+  if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
+    throw new Error("Remote Codespaces backend URLs must use HTTPS.");
+  }
+  const cleanPath = parsed.pathname.replace(/\\/+$/, "");
+  return parsed.origin + cleanPath;
 }
 function updateBackendStatus(message, connected = false) {
-  $("backend-connection-state").textContent = connected ? "Connected" : (state.backendUrl ? "Configured" : "Not connected");
-  $("backend-connection-state").className = "status-pill";
+  $("backend-connection-state").textContent = connected ? "Connected" : (state.backendUrl ? "Configured · offline" : "Not connected");
+  $("backend-connection-state").className = connected ? "status-pill connected" : "status-pill";
   $("backend-help").textContent = message;
 }
-function normalizeBackendUrl(value) {
-  const parsed = new URL(value.trim());
-  if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("Enter a valid backend URL without credentials, query strings or fragments.");
-  if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname)) throw new Error("Use an HTTPS Codespaces forwarded URL.");
-  return parsed.origin.replace(/\/$/, "");
+function loadBackendUrl() {
+  let saved = "";
+  try { saved = localStorage.getItem(BACKEND_STORAGE_KEY) || ""; }
+  catch (_) { updateBackendStatus("This browser blocks local storage. Enable site storage to remember the backend URL."); }
+  if (saved) {
+    try { state.backendUrl = normalizeBackendUrl(saved); }
+    catch (error) {
+      state.backendUrl = "";
+      try { localStorage.removeItem(BACKEND_STORAGE_KEY); } catch (_) {}
+      updateBackendStatus("The previously saved backend URL was invalid and has been cleared: " + error.message);
+    }
+  } else if (!isPagesHost && !state.backendUrl) {
+    state.backendUrl = location.origin;
+  }
+  $("backend-url").value = state.backendUrl;
+  if (state.backendUrl) updateBackendStatus("Saved backend URL loaded. Checking /api/health…");
+  else updateBackendStatus("Backend not configured. Connect a running Flask server.");
 }
-
 async function api(path, options = {}) {
+  if (!state.backendUrl) throw new Error("Backend not connected. Enter and save your Codespaces forwarded URL first.");
   const config = { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) } };
-  if (!state.backendUrl) throw new Error("Backend not connected. Enter your Codespaces forwarded URL above.");
-  const response = await fetch(state.backendUrl + path, { ...config, mode: "cors", credentials: "include" });
-  const type = response.headers.get("content-type") || "";
-  const payload = type.includes("application/json") ? await response.json() : await response.text();
+  let response;
+  try {
+    response = await fetch(state.backendUrl + path, { ...config, mode: "cors", credentials: "include" });
+  } catch (error) {
+    throw new Error("Could not reach the backend. Check that Flask is running, port 8000 is forwarded, and the URL is correct. A CORS or Codespaces port-privacy restriction may also block the request. " + (error?.message || ""));
+  }
+  const contentType = response.headers.get("content-type") || "";
+  let payload;
+  if (contentType.toLowerCase().includes("application/json")) {
+    try { payload = await response.json(); }
+    catch (_) { throw new Error("Backend returned invalid JSON (HTTP " + response.status + ")."); }
+  } else {
+    payload = await response.text();
+  }
   if (!response.ok) {
-    const message = payload && typeof payload === "object" ? (payload.error || payload.reply || payload.message) : payload;
-    throw new Error(message || `Request failed (HTTP ${response.status})`);
+    const detail = payload && typeof payload === "object" ? (payload.error || payload.reply || payload.message) : payload;
+    throw new Error((detail && String(detail).trim()) || ("Backend request failed (HTTP " + response.status + ")."));
+  }
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error("Backend returned a non-JSON response (HTTP " + response.status + "). Check the URL and Flask API route.");
   }
   return payload;
 }
@@ -211,20 +244,26 @@ $("backend-form").addEventListener("submit", async (event) => {
   event.preventDefault(); clearError();
   try {
     const candidate = normalizeBackendUrl($("backend-url").value);
+    localStorage.setItem(BACKEND_STORAGE_KEY, candidate);
     state.backendUrl = candidate;
-    try { localStorage.setItem(BACKEND_STORAGE_KEY, candidate); } catch (_) {}
-    updateBackendStatus("Testing backend connection…");
+    $("backend-url").value = candidate;
+    updateBackendStatus("Backend URL saved. Testing /api/health…");
     await refreshHealth();
     if ($("backend-connection-state").textContent === "Connected") {
       await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
     }
-  } catch (error) { state.backendUrl = ""; updateBackendStatus(error.message); showError(error.message); }
+  } catch (error) {
+    updateBackendStatus(error.message);
+    showError(error.message);
+  }
 });
-$("disconnect-backend").addEventListener("click", () => {
+$("disconnect-backend").addEventListener("click", async () => {
+  clearError();
+  try { localStorage.removeItem(BACKEND_STORAGE_KEY); }
+  catch (_) { showError("Could not clear the saved backend URL because browser storage is unavailable."); }
   state.backendUrl = "";
   $("backend-url").value = "";
-  try { localStorage.removeItem(BACKEND_STORAGE_KEY); } catch (_) {}
-  clearError(); refreshHealth();
+  await refreshHealth();
 });
 $("refresh-status").addEventListener("click", refreshHealth);
 $("refresh-logs").addEventListener("click", refreshLogs);
@@ -243,7 +282,6 @@ document.querySelectorAll("[data-tab]").forEach((button) => button.addEventListe
 }));
 async function initialize() {
   loadBackendUrl();
-  if (!state.backendUrl) { await refreshHealth(); return; }
   await refreshHealth();
   if ($("backend-connection-state").textContent === "Connected") {
     await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);

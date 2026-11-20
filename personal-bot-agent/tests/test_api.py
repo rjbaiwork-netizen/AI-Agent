@@ -41,6 +41,47 @@ class ApiSmokeTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.runtime, ignore_errors=True)
 
+
+    def test_cors_preflight_for_all_api_routes(self):
+        origin = "https://rjbaiwork-netizen.github.io"
+        api_paths = (
+            "/api/health", "/api/chat", "/api/notes", "/api/tasks",
+            "/api/tasks/example-id/complete", "/api/brains",
+            "/api/brains/reverify", "/api/logs", "/api/not-a-real-route",
+        )
+        for path in api_paths:
+            with self.subTest(path=path):
+                response = self.client.options(
+                    path,
+                    headers={
+                        "Origin": origin,
+                        "Access-Control-Request-Method": "POST",
+                        "Access-Control-Request-Headers": "content-type,authorization",
+                    },
+                )
+                self.assertEqual(response.status_code, 204, response.get_data(as_text=True))
+                self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), origin)
+                self.assertEqual(response.headers.get("Access-Control-Allow-Methods"), "GET, POST, OPTIONS")
+                self.assertEqual(response.headers.get("Access-Control-Allow-Headers"), "Content-Type, Authorization")
+                self.assertEqual(response.headers.get("Access-Control-Allow-Credentials"), "true")
+                self.assertIn("Origin", response.headers.get("Vary", ""))
+
+    def test_cors_allows_local_and_codespaces_origins(self):
+        for origin in (
+            "http://localhost:3000",
+            "http://127.0.0.1:5500",
+            "https://my-codespace-8000.app.github.dev",
+            "https://my-codespace.github.dev",
+        ):
+            with self.subTest(origin=origin):
+                response = self.client.get("/api/health", headers={"Origin": origin})
+                self.assertEqual(response.headers.get("Access-Control-Allow-Origin"), origin)
+                self.assertEqual(response.headers.get("Access-Control-Allow-Headers"), "Content-Type, Authorization")
+
+    def test_cors_rejects_untrusted_origins(self):
+        response = self.client.get("/api/health", headers={"Origin": "https://attacker.example"})
+        self.assertNotIn("Access-Control-Allow-Origin", response.headers)
+
     def test_dashboard_and_static_assets(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
