@@ -105,6 +105,16 @@ def home():
     return send_from_directory(UI_DIR, "index.html")
 
 
+@app.get("/styles.css")
+@app.get("/app.js")
+def root_ui_assets():
+    """Serve relative UI assets when Flask serves index.html from /."""
+    filename = request.path.lstrip("/")
+    if filename not in {"styles.css", "app.js"}:
+        return _error("UI asset not found.", 404)
+    return send_from_directory(UI_DIR, filename)
+
+
 @app.get("/ui/<path:filename>")
 def ui_assets(filename):
     return send_from_directory(UI_DIR, filename)
