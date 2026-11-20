@@ -1,6 +1,7 @@
 """Flask API and web UI for the single-user Personal Bot Agent."""
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
@@ -41,8 +42,6 @@ app.config["JSON_AS_ASCII"] = False
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
 # CORS is restricted to the Pages site and local/Codespaces development origins.
-from urllib.parse import urlsplit
-
 PAGES_ORIGIN = "https://rjbaiwork-netizen.github.io"
 
 

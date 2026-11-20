@@ -14,8 +14,9 @@ function normalizeBackendUrl(value) {
   if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
     throw new Error("Remote Codespaces backend URLs must use HTTPS.");
   }
-  const cleanPath = parsed.pathname.replace(/\\/+$/, "");
-  return parsed.origin + cleanPath;
+  const cleanPath = parsed.pathname.split("/").filter(Boolean).join("/");
+  const normalizedPath = cleanPath ? "/" + cleanPath : "";
+  return parsed.origin + normalizedPath;
 }
 function updateBackendStatus(message, connected = false) {
   $("backend-connection-state").textContent = connected ? "Connected" : (state.backendUrl ? "Configured · offline" : "Not connected");
