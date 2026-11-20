@@ -11,7 +11,8 @@ from agent.planner import make_plan
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
-APP_HOST = os.getenv("APP_HOST", "127.0.0.1")
+# Bind to all interfaces so GitHub Codespaces port forwarding can reach the app.
+APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 ALLOW_LIVE_FETCH = os.getenv("ALLOW_LIVE_FETCH", "true").strip().lower() in {
@@ -59,7 +60,7 @@ def chat():
 
     intent = route(message)
     if intent == "planning":
-        reply = "\\n".join(make_plan(message))
+        reply = "\n".join(make_plan(message))
     else:
         reply = f"Intent: {intent}. Local starter agent; no model provider configured."
     return jsonify(reply=reply)
