@@ -1,0 +1,49 @@
+name: Brain Re-verification
+
+on:
+  push:
+    paths:
+      - 'personal-bot-agent/agent/brains/**'
+      - 'personal-bot-agent/bot/rules.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reverify-brains:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r personal-bot-agent/requirements.txt
+
+      - name: Run Brain Re-verification
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'personal-bot-agent')
+          from agent.reverify import reverify_all_brains
+          report = reverify_all_brains()
+          print('Re-verification summary:', report.get('summary'))
+          assert report.get('ok', False), f'Re-verification failed: {report}'
+          "
+
+      - name: Commit verification reports and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add personal-bot-agent/data/brain_versions/ personal-bot-agent/logs/
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(brain): run automated re-verification report"
+            git push origin main
+          fi

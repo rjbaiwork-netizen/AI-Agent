@@ -1,0 +1,55 @@
+name: Scheduled Tasks & Health Check
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-scheduled-tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r personal-bot-agent/requirements.txt
+
+      - name: Run Bot scheduled checks & logging
+        env:
+          GUARDRAIL_MAX_STEPS: "10"
+          GUARDRAIL_TIMEOUT_SEC: "60"
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'personal-bot-agent')
+          from bot.actions import check_system_status, list_tasks
+          from pathlib import Path
+          status = check_system_status()
+          tasks = list_tasks()
+          log_dir = Path('personal-bot-agent/logs')
+          log_dir.mkdir(parents=True, exist_ok=True)
+          with open(log_dir / 'bot.log', 'a', encoding='utf-8') as f:
+              f.write(f'SCHEDULED_CHECK | status={status.get("status")} | pending_tasks={len([t for t in tasks if not t.get("done")])}\\n')
+          print('Scheduled check completed:', status.get('status'))
+          "
+
+      - name: Commit updated logs if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add personal-bot-agent/logs/ personal-bot-agent/data/
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(bot): scheduled health and task check"
+            git push origin main
+          fi

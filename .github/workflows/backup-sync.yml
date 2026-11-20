@@ -1,0 +1,33 @@
+name: Backup & Sync Workspace Data
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure data and log files exist
+        run: |
+          mkdir -p personal-bot-agent/data/workspace personal-bot-agent/data/brain_versions personal-bot-agent/logs
+          touch personal-bot-agent/logs/bot.log personal-bot-agent/logs/trace.jsonl
+
+      - name: Sync changes to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add personal-bot-agent/data/ personal-bot-agent/logs/
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(backup): daily sync of notes, workspace, and logs"
+            git push origin main
+          else
+            echo "No changes to sync."
+          fi
