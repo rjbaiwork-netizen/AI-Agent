@@ -33,10 +33,12 @@ if "/ui/styles.css" in index or "/ui/app.js" in index:
     raise SystemExit("Pages HTML must not use root-absolute Flask asset paths.")
 
 (OUTPUT / ".nojekyll").write_text("", encoding="utf-8")
-for name in (*REQUIRED, ".nojekyll"):
+for name in REQUIRED:
     artifact = OUTPUT / name
     if not artifact.is_file() or artifact.stat().st_size == 0:
         raise SystemExit(f"Missing or empty Pages artifact: {artifact}")
+if not (OUTPUT / ".nojekyll").is_file():
+    raise SystemExit("Missing Pages artifact: _site/.nojekyll")
 
 print("GitHub Pages static artifact built and validated successfully.")
 print("Files:", ", ".join(sorted(path.name for path in OUTPUT.iterdir())))
