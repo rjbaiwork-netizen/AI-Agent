@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.exceptions import BadRequest
 
 from bot.actions import (
     add_note, add_task, check_system_status, complete_task,
@@ -43,7 +44,10 @@ app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 def _json_body():
     if not request.is_json:
         raise ValueError("Content-Type must be application/json")
-    payload = request.get_json(silent=False)
+    try:
+        payload = request.get_json(silent=False)
+    except BadRequest as exc:
+        raise ValueError("Malformed JSON request body") from exc
     if not isinstance(payload, dict):
         raise ValueError("Request body must be a JSON object")
     return payload

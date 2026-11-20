@@ -42,10 +42,14 @@ class ApiSmokeTests(unittest.TestCase):
         shutil.rmtree(self.runtime, ignore_errors=True)
 
     def test_dashboard_and_static_assets(self):
-        self.assertEqual(self.client.get("/").status_code, 200)
-        self.assertIn(b"Personal Bot Agent", self.client.get("/").data)
-        self.assertEqual(self.client.get("/ui/styles.css").status_code, 200)
-        self.assertEqual(self.client.get("/ui/app.js").status_code, 200)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Personal Bot Agent", response.data)
+        response.close()
+        for asset in ("/ui/styles.css", "/ui/app.js"):
+            response = self.client.get(asset)
+            self.assertEqual(response.status_code, 200, asset)
+            response.close()
 
     def test_health_and_notes_api(self):
         health = self.client.get("/api/health")
@@ -93,6 +97,9 @@ class ApiSmokeTests(unittest.TestCase):
         response = self.client.post("/api/chat", json={"message": ""})
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.get_json()["ok"])
+        malformed = self.client.post("/api/notes", data="{", content_type="application/json")
+        self.assertEqual(malformed.status_code, 400)
+        self.assertFalse(malformed.get_json()["ok"])
 
 
 if __name__ == "__main__":
