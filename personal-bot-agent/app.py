@@ -40,6 +40,19 @@ app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024
 
+# Restrict cross-origin browser access to this project's GitHub Pages frontend.
+PAGES_ORIGIN = "https://rjbaiwork-netizen.github.io"
+
+@app.after_request
+def add_pages_cors_headers(response):
+    if request.headers.get("Origin") == PAGES_ORIGIN:
+        response.headers["Access-Control-Allow-Origin"] = PAGES_ORIGIN
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers.add("Vary", "Origin")
+    return response
+
 
 def _json_body():
     if not request.is_json:

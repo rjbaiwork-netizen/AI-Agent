@@ -24,6 +24,16 @@
     </header>
 
     <div id="global-error" class="alert hidden" role="alert"></div>
+    <section class="panel backend-panel" aria-labelledby="backend-heading">
+      <div class="section-heading"><div><p class="eyebrow">CONNECTION</p><h2 id="backend-heading">Backend connection</h2></div><span id="backend-connection-state" class="status-pill">Not connected</span></div>
+      <p class="muted">GitHub Pages serves this interface only. Enter your running Flask backend's HTTPS Codespaces forwarded URL to use chat, notes, tasks and system tools.</p>
+      <form id="backend-form" class="backend-form">
+        <label for="backend-url">Flask backend URL</label>
+        <input id="backend-url" type="url" inputmode="url" placeholder="https://your-codespace-8000.app.github.dev" autocomplete="url">
+        <div class="form-footer"><small class="muted">Saved only in this browser. Do not paste API keys or secrets here.</small><div class="backend-actions"><button id="disconnect-backend" class="button secondary" type="button">Disconnect</button><button id="connect-backend" class="button primary" type="submit">Connect &amp; test</button></div></div>
+      </form>
+      <p id="backend-help" class="backend-help" aria-live="polite">Backend not configured. The static website itself is available.</p>
+    </section>
     <main>
       <section class="panel chat-panel">
         <div class="section-heading"><div><p class="eyebrow">ASSISTANT</p><h2>Chat &amp; Agent Console</h2></div><span id="chat-state" class="status-pill">Ready</span></div>

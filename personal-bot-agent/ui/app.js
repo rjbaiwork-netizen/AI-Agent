@@ -1,10 +1,30 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
-const state = { busy: new Set(), notes: [], tasks: [], brains: null, logs: null };
+const state = { busy: new Set(), notes: [], tasks: [], brains: null, logs: null, backendUrl: "" };
+const BACKEND_STORAGE_KEY = "personal-bot-agent-backend-url";
+const isPagesHost = location.hostname === "rjbaiwork-netizen.github.io";
+function loadBackendUrl() {
+  try { state.backendUrl = localStorage.getItem(BACKEND_STORAGE_KEY) || ""; } catch (_) { state.backendUrl = ""; }
+  if (!state.backendUrl && !isPagesHost) state.backendUrl = location.origin;
+  $("backend-url").value = state.backendUrl;
+  updateBackendStatus(state.backendUrl ? "Backend URL saved; checking…" : "Backend not configured. Connect a running Flask server.");
+}
+function updateBackendStatus(message, connected = false) {
+  $("backend-connection-state").textContent = connected ? "Connected" : (state.backendUrl ? "Configured" : "Not connected");
+  $("backend-connection-state").className = "status-pill";
+  $("backend-help").textContent = message;
+}
+function normalizeBackendUrl(value) {
+  const parsed = new URL(value.trim());
+  if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("Enter a valid backend URL without credentials, query strings or fragments.");
+  if (parsed.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(parsed.hostname)) throw new Error("Use an HTTPS Codespaces forwarded URL.");
+  return parsed.origin.replace(/\/$/, "");
+}
 
 async function api(path, options = {}) {
   const config = { ...options, headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) } };
-  const response = await fetch(path, config);
+  if (!state.backendUrl) throw new Error("Backend not connected. Enter your Codespaces forwarded URL above.");
+  const response = await fetch(state.backendUrl + path, { ...config, mode: "cors", credentials: "include" });
   const type = response.headers.get("content-type") || "";
   const payload = type.includes("application/json") ? await response.json() : await response.text();
   if (!response.ok) {
@@ -35,17 +55,26 @@ function element(tag, className, text) {
   return node;
 }
 async function refreshHealth() {
+  if (!state.backendUrl) {
+    $("health-label").textContent = "Backend not connected";
+    $("health-indicator").className = "status-dot warning";
+    $("gemini-label").textContent = "Gemini: unavailable";
+    updateBackendStatus("Static frontend is loaded. Connect the Flask backend to enable API features.");
+    return;
+  }
   setBusy("refresh-status", true, "Refreshing…");
   try {
     const data = await api("/api/health");
     $("health-label").textContent = data.status || (data.ok ? "System healthy" : "System degraded");
     $("health-indicator").className = "status-dot " + (data.ok ? "ok" : "error");
+    updateBackendStatus("Backend health check succeeded.", true);
     const config = data.configuration || {};
     $("gemini-label").textContent = "Gemini: " + (config.gemini_configured ? "configured" : "not configured");
     if (!data.ok) showError((data.system?.errors || []).join(" · ") || "System health is degraded.");
     else clearError();
   } catch (error) {
     $("health-label").textContent = "Backend unavailable";
+    updateBackendStatus("Could not reach backend: " + error.message + ". Check that Flask is running and the Codespaces port is accessible.");
     $("health-indicator").className = "status-dot error";
     $("gemini-label").textContent = "Gemini: unknown";
     showError(error.message);
@@ -178,6 +207,25 @@ $("task-form").addEventListener("submit", async (event) => {
   } catch (error) { showError(error.message); }
   finally { setBusy("save-task", false); }
 });
+$("backend-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); clearError();
+  try {
+    const candidate = normalizeBackendUrl($("backend-url").value);
+    state.backendUrl = candidate;
+    try { localStorage.setItem(BACKEND_STORAGE_KEY, candidate); } catch (_) {}
+    updateBackendStatus("Testing backend connection…");
+    await refreshHealth();
+    if ($("backend-connection-state").textContent === "Connected") {
+      await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
+    }
+  } catch (error) { state.backendUrl = ""; updateBackendStatus(error.message); showError(error.message); }
+});
+$("disconnect-backend").addEventListener("click", () => {
+  state.backendUrl = "";
+  $("backend-url").value = "";
+  try { localStorage.removeItem(BACKEND_STORAGE_KEY); } catch (_) {}
+  clearError(); refreshHealth();
+});
 $("refresh-status").addEventListener("click", refreshHealth);
 $("refresh-logs").addEventListener("click", refreshLogs);
 $("reverify-brains").addEventListener("click", async () => {
@@ -194,6 +242,11 @@ document.querySelectorAll("[data-tab]").forEach((button) => button.addEventListe
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.id !== button.dataset.tab));
 }));
 async function initialize() {
-  await Promise.allSettled([refreshHealth(), refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
+  loadBackendUrl();
+  if (!state.backendUrl) { await refreshHealth(); return; }
+  await refreshHealth();
+  if ($("backend-connection-state").textContent === "Connected") {
+    await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
+  }
 }
 initialize();
