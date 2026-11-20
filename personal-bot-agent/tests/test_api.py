@@ -87,7 +87,7 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Personal Bot Agent", response.data)
         response.close()
-        for asset in ("/ui/styles.css", "/ui/app.js"):
+        for asset in ("/styles.css", "/app.js", "/ui/styles.css", "/ui/app.js"):
             response = self.client.get(asset)
             self.assertEqual(response.status_code, 200, asset)
             response.close()
