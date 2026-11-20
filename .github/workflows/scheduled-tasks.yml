@@ -4,6 +4,14 @@ on:
   schedule:
     - cron: "0 */6 * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "personal-bot-agent/bot/**"
+      - "personal-bot-agent/agent/**"
+      - "personal-bot-agent/requirements.txt"
+      - ".github/workflows/scheduled-tasks.yml"
 
 permissions:
   contents: write
