@@ -30,19 +30,28 @@ jobs:
           GUARDRAIL_MAX_STEPS: "10"
           GUARDRAIL_TIMEOUT_SEC: "60"
         run: |
-          python -c "
+          python - <<'PY'
           import sys
-          sys.path.insert(0, 'personal-bot-agent')
-          from bot.actions import check_system_status, list_tasks
           from pathlib import Path
+
+          sys.path.insert(0, "personal-bot-agent")
+          from bot.actions import check_system_status, list_tasks
+
           status = check_system_status()
           tasks = list_tasks()
-          log_dir = Path('personal-bot-agent/logs')
+          pending = sum(1 for task in tasks if not task.get("done", False))
+
+          log_dir = Path("personal-bot-agent/logs")
           log_dir.mkdir(parents=True, exist_ok=True)
-          with open(log_dir / 'bot.log', 'a', encoding='utf-8') as f:
-              f.write(f'SCHEDULED_CHECK | status={status.get("status")} | pending_tasks={len([t for t in tasks if not t.get("done")])}\\n')
-          print('Scheduled check completed:', status.get('status'))
-          "
+          with (log_dir / "bot.log").open("a", encoding="utf-8") as log_file:
+              log_file.write(
+                  f"SCHEDULED_CHECK | status={status.get('status')} | "
+                  f"pending_tasks={pending}\\n"
+              )
+
+          print("Scheduled check completed:", status.get("status"))
+          print("Pending tasks:", pending)
+          PY
 
       - name: Commit updated logs if changed
         run: |
