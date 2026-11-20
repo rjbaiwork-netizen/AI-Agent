@@ -260,8 +260,22 @@ $("backend-form").addEventListener("submit", async (event) => {
 });
 $("disconnect-backend").addEventListener("click", async () => {
   clearError();
+  try {
+    const saved = localStorage.getItem(BACKEND_STORAGE_KEY) || "";
+    if (!saved) throw new Error("No saved backend URL is available to restore.");
+    state.backendUrl = normalizeBackendUrl(saved);
+    $("backend-url").value = state.backendUrl;
+    updateBackendStatus("Restored saved backend URL. Testing /api/health…");
+    await refreshHealth();
+    if ($("backend-connection-state").textContent === "Connected") {
+      await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
+    }
+  } catch (error) { updateBackendStatus(error.message); showError(error.message); }
+});
+$("clear-backend").addEventListener("click", async () => {
+  clearError();
   try { localStorage.removeItem(BACKEND_STORAGE_KEY); }
-  catch (_) { showError("Could not clear the saved backend URL because browser storage is unavailable."); }
+  catch (_) { showError("Could not clear the saved backend URL because browser storage is unavailable."); return; }
   state.backendUrl = "";
   $("backend-url").value = "";
   await refreshHealth();
