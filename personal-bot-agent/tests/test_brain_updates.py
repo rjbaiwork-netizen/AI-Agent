@@ -61,7 +61,7 @@ class BrainUpdateTests(unittest.TestCase):
             brain_updates.update_topic("unique topic", "different content")
 
     def test_live_update_success_extracts_html_and_reverifies(self):
-        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}):
+        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}), patch.object(brain_updates.socket, "getaddrinfo", return_value=[(None, None, None, None, ("93.184.216.34", 443))]):
             with patch.object(brain_updates, "_download_source", return_value=("text/html", "<html><title>Official Docs</title><script>ignore()</script><p>Verified API usage guidance.</p></html>", "https://docs.example.org/page")):
                 result = brain_updates.update_from_url("API documentation", "https://docs.example.org/page", "research_live.md")
         self.assertTrue(result["ok"])
@@ -74,7 +74,7 @@ class BrainUpdateTests(unittest.TestCase):
         with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "false"}):
             with self.assertRaises(PermissionError):
                 brain_updates.update_from_url("topic", "https://docs.example.org")
-        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}):
+        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}), patch.object(brain_updates.socket, "getaddrinfo", return_value=[(None, None, None, None, ("93.184.216.34", 443))]):
             for url in ("http://docs.example.org", "https://localhost/admin", "https://user:pass@docs.example.org"):
                 with self.subTest(url=url), self.assertRaises(ValueError):
                     brain_updates.update_from_url("topic", url)

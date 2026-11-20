@@ -42,6 +42,8 @@ def _validate_text(value, field, maximum):
         raise ValueError(f"{field} cannot be empty")
     if len(value) > maximum:
         raise ValueError(f"{field} cannot exceed {maximum} characters")
+    if field == "topic" and any(char in value for char in "\n\r"):
+        raise ValueError("topic must be a single line")
     if any(ord(char) < 32 and char not in "\n\t\r" for char in value):
         raise ValueError(f"{field} contains unsupported control characters")
     if any(pattern.search(value) for pattern in _SECRET_PATTERNS):
@@ -99,8 +101,10 @@ def update_topic(topic, content, brain_file="project_logic.md", source_url=None)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     verification = reverify_all_brains()
     if not verification.get("ok"):
+        _atomic_write(path, original)
+        reverify_all_brains()
         _record("brain_topic_update", {"topic": topic, "brain_file": brain_file, "sha256": digest}, "error")
-        raise RuntimeError("Brain content was written but integrity re-verification failed; inspect latest.json")
+        raise RuntimeError("Brain update rolled back because integrity re-verification failed; inspect latest.json")
     details = {"topic": topic, "brain_file": brain_file, "sha256": digest, "source_url": source_url, "verified": True}
     _record("brain_topic_update", details)
     return {"ok": True, **details, "verification": verification["summary"]}

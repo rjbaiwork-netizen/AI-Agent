@@ -315,7 +315,8 @@ $("brain-online-form").addEventListener("submit", async (event) => {
   } catch (error) { setBrainUpdateStatus("Online update failed: " + error.message); showError(error.message); }
   finally { setBusy("fetch-brain-source", false); }
 });
-\n$("refresh-status").addEventListener("click", refreshHealth);
+
+$("refresh-status").addEventListener("click", refreshHealth);
 $("refresh-notes").addEventListener("click", refreshNotes);
 $("refresh-tasks").addEventListener("click", refreshTasks);
 $("refresh-brains").addEventListener("click", refreshBrains);
