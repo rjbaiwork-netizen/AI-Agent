@@ -1,1 +1,127 @@
-{"intents":{"notes":["remember","note","save this","নোট"],"planning":["plan","todo","schedule","পরিকল্পনা"],"project":["project","repository","github","প্রজেক্ট"],"research":["research","find","compare","খুঁজে"],"writing":["write","draft","email","লিখে"],"security":["security","vulnerability","secure","নিরাপত্তা"]}}
+{
+  "version": 1,
+  "description": "Deterministic command routing rules for the single-user personal bot.",
+  "intents": [
+    {
+      "name": "system_status",
+      "patterns": [
+        "system status",
+        "health",
+        "status",
+        "সিস্টেম স্ট্যাটাস",
+        "স্বাস্থ্য"
+      ],
+      "action": "check_system_status",
+      "priority": 100
+    },
+    {
+      "name": "note_add",
+      "patterns": [
+        "remember ",
+        "save note",
+        "add note",
+        "নোট রাখ",
+        "মনে রাখ",
+        "নোট লিখ"
+      ],
+      "action": "add_note",
+      "priority": 90
+    },
+    {
+      "name": "note_list",
+      "patterns": [
+        "list notes",
+        "show notes",
+        "আমার নোট",
+        "নোট দেখ"
+      ],
+      "action": "list_notes",
+      "priority": 90
+    },
+    {
+      "name": "task_add",
+      "patterns": [
+        "add task",
+        "new task",
+        "create task",
+        "টাস্ক যোগ",
+        "কাজ যোগ",
+        "নতুন কাজ"
+      ],
+      "action": "add_task",
+      "priority": 90
+    },
+    {
+      "name": "task_complete",
+      "patterns": [
+        "complete task",
+        "finish task",
+        "done task",
+        "টাস্ক সম্পন্ন",
+        "কাজ শেষ"
+      ],
+      "action": "complete_task",
+      "priority": 90
+    },
+    {
+      "name": "task_list",
+      "patterns": [
+        "list tasks",
+        "show tasks",
+        "my tasks",
+        "টাস্ক দেখ",
+        "কাজের তালিকা"
+      ],
+      "action": "list_tasks",
+      "priority": 90
+    },
+    {
+      "name": "brain_verify",
+      "patterns": [
+        "verify brains",
+        "reverify brains",
+        "ব্রেন যাচাই",
+        "ব্রেন ভেরিফাই"
+      ],
+      "action": "reverify_all_brains",
+      "priority": 90
+    },
+    {
+      "name": "brain_read",
+      "patterns": [
+        "read brain",
+        "show brain",
+        "ব্রেন পড়",
+        "ব্রেন দেখ"
+      ],
+      "action": "read_brains",
+      "priority": 80
+    },
+    {
+      "name": "logs_read",
+      "patterns": [
+        "show logs",
+        "tail log",
+        "recent logs",
+        "লগ দেখ",
+        "সাম্প্রতিক লগ"
+      ],
+      "action": "tail_log",
+      "priority": 80
+    },
+    {
+      "name": "trace_read",
+      "patterns": [
+        "show traces",
+        "read traces",
+        "ট্রেস দেখ"
+      ],
+      "action": "read_traces",
+      "priority": 80
+    }
+  ],
+  "agent_fallback": {
+    "name": "agent",
+    "description": "General, research, writing, project and multi-step requests are delegated to agent.unified_brain."
+  }
+}
