@@ -27,6 +27,8 @@ _SECRET_PATTERNS = (
     re.compile(r"\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]\s*['\"]?[A-Za-z0-9_./+=-]{12,}", re.I),
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}", re.I),
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b", re.I),
+    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b", re.I),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b", re.I),
 )
 
 def _now():
@@ -200,7 +202,7 @@ def _download_source(url, timeout=DEFAULT_TIMEOUT):
 
 def _extractive_summary(text, max_sentences=6):
     """Select salient source sentences deterministically; this is not fact-checking."""
-    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\\s+|\\n+", text) if part.strip()]
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", text) if part.strip()]
     if not sentences:
         return text[:4000]
     words = [re.findall(r"[A-Za-z0-9_+-]{3,}", sentence.casefold()) for sentence in sentences]

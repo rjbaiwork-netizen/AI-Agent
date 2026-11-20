@@ -65,6 +65,7 @@ class BrainUpdateTests(unittest.TestCase):
             {"topic": "", "content": "body"},
             {"topic": "topic", "content": ""},
             {"topic": "topic", "content": "api_key=abcdefghijklmno"},
+            {"topic": "topic", "content": "github_pat_123456789012345678901234567890"},
             {"topic": "topic", "content": "valid", "brain_file": "../secrets.txt"},
         ):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
