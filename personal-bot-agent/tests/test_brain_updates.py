@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from agent import brain_updates, reverify
+from agent import brain_updates, reverify, planner
 
 class BrainUpdateTests(unittest.TestCase):
     def setUp(self):
@@ -34,6 +34,19 @@ class BrainUpdateTests(unittest.TestCase):
         from bot import tracer
         tracer.TRACE_PATH = self.original_trace
         shutil.rmtree(self.runtime, ignore_errors=True)
+
+
+    def test_planner_uses_coding_project_and_root_cause_sequences(self):
+        coding = planner.make_plan("Write Python code for a REST API")
+        project = planner.make_plan("Create a new project architecture")
+        problem = planner.make_plan("Diagnose the root cause of a production error")
+        self.assertEqual(coding["task_type"], "coding")
+        self.assertIn("Run syntax, unit, integration", coding["steps"][-2]["action"])
+        self.assertEqual(project["task_type"], "project_build")
+        self.assertIn("architecture", project["steps"][1]["action"])
+        self.assertEqual(problem["task_type"], "problem_solving")
+        self.assertIn("root cause", problem["steps"][2]["action"])
+        self.assertLessEqual(len(planner.make_plan("debug code", max_steps=2)["steps"]), 2)
 
     def test_topic_update_writes_hash_report_and_valid_logs(self):
         result = brain_updates.update_topic("Flask request validation", "Validate JSON types and request sizes.", "coding_security.md")

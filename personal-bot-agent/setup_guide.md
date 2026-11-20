@@ -32,12 +32,24 @@
 - `GET/POST /api/tasks` — task listing and creation
 - `POST /api/tasks/<task_id>/complete` — task completion
 - `GET /api/brains`, `POST /api/brains/reverify` — brain integrity
+- `POST /api/brains/update` — save a topic, content and registered `brain_file`; writes atomically and re-verifies SHA-256
+- `POST /api/brains/update-online` — fetch public HTTPS HTML, plain text or JSON with a bounded timeout; requires `ALLOW_LIVE_FETCH=true`; blocks private/local destinations and unsupported content types
+
+Chat commands accept explicit JSON payloads:
+
+```text
+brain update {"topic":"Flask API security","brain_file":"coding_security.md","content":"Validate request schemas and body sizes."}
+brain online {"topic":"Python documentation","brain_file":"research_live.md","url":"https://docs.python.org/3/"}
+```
+
+Live retrieval records source URL and retrieval metadata. It extracts document text; it does not independently fact-check source claims. Set `ALLOW_LIVE_FETCH=true` in the Codespaces `.env` only when enabling network retrieval. Network, HTTP, timeout and invalid-content failures are returned as errors, never as successful updates.
 - `GET /api/logs` — recent bot log and JSONL traces
 
 ## Local validation
 
    ```bash
-   python -m compileall -q bot agent app.py
+   python -m compileall -q bot agent app.py tests
+   node --check ui/app.js
    python -m json.tool bot/rules.json >/dev/null
    ```
 

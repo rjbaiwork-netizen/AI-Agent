@@ -144,6 +144,46 @@ class ApiSmokeTests(unittest.TestCase):
         trace_text = (self.runtime / "logs/trace.jsonl").read_text(encoding="utf-8")
         self.assertNotIn(secret, trace_text)
 
+
+    def test_brain_update_api_success_and_invalid_input(self):
+        with patch.object(web_app, "update_topic", return_value={
+            "ok": True, "topic": "Flask security", "brain_file": "coding_security.md",
+            "sha256": "a" * 64, "verification": "Verified all 7 required brain files."
+        }) as update:
+            response = self.client.post("/api/brains/update", json={
+                "topic": "Flask security", "content": "Validate request data",
+                "brain_file": "coding_security.md"
+            })
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertTrue(response.get_json()["ok"])
+        update.assert_called_once()
+        invalid = self.client.post("/api/brains/update", json={"topic": "", "content": "content"})
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_online_brain_api_reports_timeout_and_disabled_errors(self):
+        with patch.object(web_app, "update_from_url", side_effect=TimeoutError("Source request timed out")):
+            timeout = self.client.post("/api/brains/update-online", json={
+                "topic": "Docs", "url": "https://docs.example.org"
+            })
+        self.assertEqual(timeout.status_code, 504)
+        self.assertFalse(timeout.get_json()["ok"])
+        with patch.object(web_app, "update_from_url", side_effect=PermissionError("Live retrieval is disabled")):
+            disabled = self.client.post("/api/brains/update-online", json={
+                "topic": "Docs", "url": "https://docs.example.org"
+            })
+        self.assertEqual(disabled.status_code, 403)
+    
+    def test_brain_chat_json_command_uses_update_handler(self):
+        with patch("agent.brain_updates.update_topic", return_value={
+            "ok": True, "topic": "Chat topic", "brain_file": "project_logic.md",
+            "sha256": "b" * 64
+        }):
+            response = self.client.post("/api/chat", json={
+                "message": 'brain update {"topic":"Chat topic","content":"A tested decision rule"}'
+            })
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertEqual(response.get_json()["intent"], "brain_update")
+
     def test_invalid_payload_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": ""})
         self.assertEqual(response.status_code, 400)

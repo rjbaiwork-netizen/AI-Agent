@@ -39,6 +39,9 @@ def _gemini_response(message, context, api_key, model):
         contents=(
             "You are a grounded personal assistant. Follow the supplied project brain. "
             "Do not claim tools were run unless tool results are explicitly supplied. "
+            "For coding and project work, structure the response as requirements, architecture, implementation, tests, and limitations. "
+            "For failures, show observed evidence, root cause, corrective logic, regression checks, and verification results. "
+            "Never claim code was executed or tests passed without actual tool output. "
             "If an operation is required, return JSON only in this schema: "
             '{"tool":"tool_name","arguments":{}}. Otherwise answer normally.\n\n'
             f"PROJECT BRAIN:\n{context}\n\nUSER REQUEST:\n{message}"
