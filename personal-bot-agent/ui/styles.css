@@ -3,3 +3,31 @@
 .backend-panel .backend-form{display:grid;gap:8px}.backend-actions{display:flex;gap:8px;flex-wrap:wrap}.backend-help{font-size:13px;color:var(--muted);margin:10px 0 0;overflow-wrap:anywhere}@media(max-width:560px){.backend-actions{width:100%}.backend-actions .button{flex:1}}
 
 .status-pill.connected{color:var(--green);border-color:#28785f;background:#123c342e}
+
+/* Layout and interaction refinements */
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button:disabled{opacity:.55;cursor:not-allowed;filter:saturate(.6)}
+.section-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.status-pill.error{color:var(--red);border-color:#85424a;background:#48272d55}
+.status-pill.warning{color:var(--yellow);border-color:#82652f;background:#4b391e55}
+.backend-form input{min-width:0}
+.backend-actions .button{white-space:nowrap}
+.panel,.record,.response-wrap,.health-card{min-width:0}
+pre,code,.code-view{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:760px){
+  .app-shell{width:100%;padding:16px 12px}
+  .health-card{width:100%;align-items:flex-start}
+  .health-card .button{margin-left:0}
+  .section-heading{align-items:flex-start;flex-wrap:wrap}
+  .section-actions{width:100%;justify-content:flex-start}
+  .backend-actions .button{flex:1 1 auto}
+}
+@media(max-width:420px){
+  body{font-size:14px}
+  .panel{padding:14px}
+  .section-heading h2{font-size:18px}
+  .backend-actions{display:grid;grid-template-columns:1fr}
+  .backend-actions .button{width:100%}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  .code-view{font-size:11px}
+}
