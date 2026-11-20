@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app as web_app
-from agent import reverify
+from agent import reverify, unified_brain
 from bot import actions, tracer
 
 
@@ -92,6 +92,16 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(fallback.status_code, 200, fallback.get_data(as_text=True))
         self.assertEqual(fallback.get_json()["handled_by"], "planner")
         self.assertEqual(fallback.get_json()["meta"]["reason"], "missing_api_key")
+
+    def test_gemini_error_redacts_api_key(self):
+        secret = "unit-test-private-key"
+        with patch.dict(os.environ, {"GEMINI_API_KEY": secret}):
+            with patch.object(unified_brain, "_gemini_response", side_effect=RuntimeError(f"provider rejected {secret}")):
+                result = unified_brain.handle_request("Please explain this project")
+        self.assertNotIn(secret, result["reply"])
+        self.assertNotIn(secret, json.dumps(result["meta"]))
+        trace_text = (self.runtime / "logs/trace.jsonl").read_text(encoding="utf-8")
+        self.assertNotIn(secret, trace_text)
 
     def test_invalid_payload_is_rejected(self):
         response = self.client.post("/api/chat", json={"message": ""})

@@ -50,6 +50,13 @@ def _gemini_response(message, context, api_key, model):
     return text.strip()
 
 
+def _safe_error(exc, secret=""):
+    message = str(exc)
+    if secret:
+        message = message.replace(secret, "[REDACTED]")
+    return f"{type(exc).__name__}: {message[:500]}"
+
+
 def handle_request(message):
     if not isinstance(message, str) or not message.strip() or len(message) > 8000:
         raise ValueError("message must contain 1-8000 characters")
@@ -88,11 +95,12 @@ def handle_request(message):
             "meta": {"ok": True, "model": model, "mode": "gemini"},
         }
     except Exception as exc:
-        append_trace("agent_fallback", {"reason": str(exc), "model": model, "plan": plan}, status="error", source="agent.unified_brain")
+        safe_error = _safe_error(exc, api_key)
+        append_trace("agent_fallback", {"reason": safe_error, "model": model, "plan": plan}, status="error", source="agent.unified_brain")
         return {
-            "reply": f"Gemini API ব্যবহার করা যায়নি ({type(exc).__name__}: {exc})। কোনো AI উত্তর বানিয়ে দেওয়া হয়নি। যাচাইযোগ্য execution plan দেওয়া হলো।",
+            "reply": f"Gemini API ব্যবহার করা যায়নি ({safe_error})। কোনো AI উত্তর বানিয়ে দেওয়া হয়নি। যাচাইযোগ্য execution plan দেওয়া হলো।",
             "intent": "agent",
             "handled_by": "planner",
             "data": {"plan": plan},
-            "meta": {"ok": False, "mode": "fallback", "reason": str(exc)},
+            "meta": {"ok": False, "mode": "fallback", "reason": safe_error},
         }
