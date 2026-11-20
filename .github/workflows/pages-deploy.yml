@@ -1,4 +1,4 @@
-: GitHub Pages Deployment
+name: GitHub Pages Deployment
 
 on:
   push:
@@ -48,6 +48,8 @@ jobs:
           assert "Backend not connected" in js
           print("Pages HTML, CSS, JS and backend-configuration checks passed.")
           PY
+      - name: Validate generated JavaScript
+        run: node --check _site/app.js
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
