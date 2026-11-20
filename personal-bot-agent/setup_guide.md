@@ -42,7 +42,7 @@ brain update {"topic":"Flask API security","brain_file":"coding_security.md","co
 brain online {"topic":"Python documentation","brain_file":"research_live.md","url":"https://docs.python.org/3/"}
 ```
 
-Live retrieval records source URL and retrieval metadata. It extracts document text; it does not independently fact-check source claims. Set `ALLOW_LIVE_FETCH=true` in the Codespaces `.env` only when enabling network retrieval. Network, HTTP, timeout and invalid-content failures are returned as errors, never as successful updates.
+Live retrieval records source URL and retrieval metadata. It extracts and creates a deterministic extractive summary from document sentences; it does not independently fact-check source claims. Query strings and URL fragments are rejected to reduce accidental credential logging. Set `ALLOW_LIVE_FETCH=true` in the Codespaces `.env` only when enabling network retrieval. Network, HTTP, timeout and invalid-content failures are returned as errors, never as successful updates.
 - `GET /api/logs` — recent bot log and JSONL traces
 
 ## Local validation

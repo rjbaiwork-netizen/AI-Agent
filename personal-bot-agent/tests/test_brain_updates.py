@@ -83,6 +83,26 @@ class BrainUpdateTests(unittest.TestCase):
         self.assertIn("Verified API usage guidance.", saved)
         self.assertNotIn("ignore()", saved)
 
+
+    def test_live_update_records_network_and_http_failures(self):
+        from urllib.error import HTTPError, URLError
+        public_dns = patch.object(brain_updates.socket, "getaddrinfo", return_value=[(None, None, None, None, ("93.184.216.34", 443))])
+        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}), public_dns:
+            opener = patch.object(brain_updates, "build_opener")
+            with opener as mocked_opener:
+                mocked_opener.return_value.open.side_effect = URLError(OSError("network down"))
+                with self.assertRaisesRegex(RuntimeError, "Source network error"):
+                    brain_updates.update_from_url("network failure", "https://docs.example.org")
+            with patch.object(brain_updates, "build_opener") as mocked_opener:
+                mocked_opener.return_value.open.side_effect = HTTPError("https://docs.example.org", 503, "Unavailable", {}, None)
+                with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+                    brain_updates.update_from_url("http failure", "https://docs.example.org")
+        trace = (self.runtime / "logs" / "trace.jsonl").read_text(encoding="utf-8")
+        self.assertIn('"event_type":"brain_online_update","status":"error"', trace)
+        with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "true"}):
+            with self.assertRaises(ValueError):
+                brain_updates.update_from_url("query url", "https://docs.example.org/?token=should-not-be-logged")
+
     def test_live_update_disabled_invalid_url_timeout_and_bad_content(self):
         with patch.dict(os.environ, {"ALLOW_LIVE_FETCH": "false"}):
             with self.assertRaises(PermissionError):

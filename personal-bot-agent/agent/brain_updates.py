@@ -1,6 +1,5 @@
 """Validated topic-based brain writes and bounded live HTTPS knowledge retrieval."""
 import hashlib
-import html
 from html.parser import HTMLParser
 import ipaddress
 import json
@@ -8,7 +7,6 @@ import os
 import re
 import socket
 import tempfile
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -143,6 +141,8 @@ def _validate_public_url(url):
     parsed = urlsplit(url.strip())
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError("Only public HTTPS source URLs without embedded credentials are allowed")
+    if parsed.query or parsed.fragment:
+        raise ValueError("Source URLs must not contain query parameters or fragments; use a public documentation URL")
     if parsed.port not in (None, 443):
         raise ValueError("Only the standard HTTPS port 443 is allowed")
     host = parsed.hostname.encode("idna").decode("ascii").lower().rstrip(".")
@@ -197,13 +197,36 @@ def _download_source(url, timeout=DEFAULT_TIMEOUT):
             raise TimeoutError(f"Source request timed out after {timeout} seconds") from exc
         raise RuntimeError(f"Source network error: {type(reason).__name__}") from exc
 
+
+def _extractive_summary(text, max_sentences=6):
+    """Select salient source sentences deterministically; this is not fact-checking."""
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\\s+|\\n+", text) if part.strip()]
+    if not sentences:
+        return text[:4000]
+    words = [re.findall(r"[A-Za-z0-9_+-]{3,}", sentence.casefold()) for sentence in sentences]
+    frequencies = {}
+    for tokens in words:
+        for token in set(tokens):
+            frequencies[token] = frequencies.get(token, 0) + 1
+    ranked = []
+    for index, tokens in enumerate(words):
+        if not tokens:
+            continue
+        score = sum(1 + (frequencies[token] - 1) * 0.5 for token in set(tokens)) / (len(tokens) ** 0.5)
+        ranked.append((score, index))
+    selected = sorted(index for _, index in sorted(ranked, reverse=True)[:max_sentences])
+    summary = " ".join(sentences[index] for index in selected)
+    return summary[:6000] or text[:4000]
+
 def update_from_url(topic, url, brain_file="research_live.md", timeout=DEFAULT_TIMEOUT):
-    if os.getenv("ALLOW_LIVE_FETCH", "false").strip().lower() not in {"1", "true", "yes", "on"}:
-        raise PermissionError("Live retrieval is disabled. Set ALLOW_LIVE_FETCH=true in the backend environment.")
-    if isinstance(timeout, bool) or not isinstance(timeout, int) or not 2 <= timeout <= 30:
-        raise ValueError("timeout must be an integer between 2 and 30 seconds")
-    safe_url = _validate_public_url(url)
+    topic_hash = hashlib.sha256(topic.encode("utf-8", errors="replace")).hexdigest()[:12] if isinstance(topic, str) else "invalid"
     try:
+        if os.getenv("ALLOW_LIVE_FETCH", "false").strip().lower() not in {"1", "true", "yes", "on"}:
+            raise PermissionError("Live retrieval is disabled. Set ALLOW_LIVE_FETCH=true in the backend environment.")
+        topic = _validate_text(topic, "topic", 160)
+        if isinstance(timeout, bool) or not isinstance(timeout, int) or not 2 <= timeout <= 30:
+            raise ValueError("timeout must be an integer between 2 and 30 seconds")
+        safe_url = _validate_public_url(url)
         content_type, body, final_url = _download_source(safe_url, timeout)
         if content_type == "text/html":
             parser = _TextExtractor()
@@ -218,11 +241,17 @@ def update_from_url(topic, url, brain_file="research_live.md", timeout=DEFAULT_T
             title = ""
             extracted = body.strip()
         extracted = _validate_text(extracted, "source text", MAX_EXTRACTED_CHARS)
-        summary = (f"Source title: {title}\n\n" if title else "") + extracted
+        summary_text = _extractive_summary(extracted)
+        summary = (
+            "Retrieval verification: HTTPS source, public DNS destination, successful HTTP response, and supported text content type. "
+            "This transport validation does not independently fact-check the source.\n\n"
+            + (f"Source title: {title}\n\n" if title else "")
+            + "Extractive summary:\n" + summary_text
+        )
         result = update_topic(topic, summary, brain_file=brain_file, source_url=final_url)
-        result.update({"retrieved_at": _now(), "content_type": content_type, "characters_saved": len(summary)})
-        _record("brain_online_update", {"topic": topic, "brain_file": brain_file, "source_url": final_url, "content_type": content_type, "characters_saved": len(summary), "sha256": result["sha256"]})
+        result.update({"retrieved_at": _now(), "content_type": content_type, "characters_saved": len(summary), "source_characters": len(extracted)})
+        _record("brain_online_update", {"topic": topic, "brain_file": brain_file, "source_host": urlsplit(final_url).hostname, "content_type": content_type, "characters_saved": len(summary), "sha256": result["sha256"]})
         return result
     except Exception as exc:
-        _record("brain_online_update", {"topic": str(topic)[:160], "source_url": str(url)[:2048], "error_type": type(exc).__name__, "error": str(exc)[:400]}, "error")
+        _record("brain_online_update", {"topic_sha256": topic_hash, "error_type": type(exc).__name__, "error": str(exc)[:400]}, "error")
         raise
