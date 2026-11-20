@@ -57,7 +57,7 @@ jobs:
           echo "Checking JavaScript syntax..."
           node --check ui/app.js
           echo "Checking workflow YAML syntax..."
-          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file); puts "YAML syntax OK: #{file}" }' ../.github/workflows/scheduled-tasks.yml ../.github/workflows/brain-reverify.yml ../.github/workflows/backup-sync.yml ../.github/workflows/app-validation.yml
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file); puts "YAML syntax OK: #{file}" }' ../.github/workflows/scheduled-tasks.yml ../.github/workflows/brain-reverify.yml ../.github/workflows/backup-sync.yml ../.github/workflows/app-validation.yml ../.github/workflows/pages-deploy.yml
           echo "Checking setup guide fenced code blocks..."
           python - <<'PY'
           from pathlib import Path
