@@ -287,7 +287,35 @@ $("clear-backend").addEventListener("click", async () => {
   $("backend-url").value = "";
   await refreshHealth();
 });
-$("refresh-status").addEventListener("click", refreshHealth);
+
+function setBrainUpdateStatus(message, success = false) {
+  $("brain-update-status").textContent = message;
+  $("brain-update-status").className = "backend-help" + (success ? " success" : "");
+}
+$("brain-update-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); clearError(); setBusy("save-brain-update", true, "Saving & verifying…");
+  try {
+    const data = await api("/api/brains/update", { method: "POST", body: JSON.stringify({
+      topic: $("brain-topic").value, brain_file: $("brain-file").value, content: $("brain-content").value
+    }) });
+    setBrainUpdateStatus("Saved and verified: " + data.result.brain_file + " · SHA-256 " + data.result.sha256, true);
+    $("brain-content").value = "";
+    await Promise.allSettled([refreshBrains(), refreshLogs(), refreshHealth()]);
+  } catch (error) { setBrainUpdateStatus("Update failed: " + error.message); showError(error.message); }
+  finally { setBusy("save-brain-update", false); }
+});
+$("brain-online-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); clearError(); setBusy("fetch-brain-source", true, "Fetching source…");
+  try {
+    const data = await api("/api/brains/update-online", { method: "POST", body: JSON.stringify({
+      topic: $("online-topic").value, url: $("online-url").value, brain_file: $("online-brain-file").value, timeout: 12
+    }) });
+    setBrainUpdateStatus("Source retrieved and saved: " + data.result.brain_file + " · " + data.result.characters_saved + " characters · SHA-256 " + data.result.sha256, true);
+    await Promise.allSettled([refreshBrains(), refreshLogs(), refreshHealth()]);
+  } catch (error) { setBrainUpdateStatus("Online update failed: " + error.message); showError(error.message); }
+  finally { setBusy("fetch-brain-source", false); }
+});
+\n$("refresh-status").addEventListener("click", refreshHealth);
 $("refresh-notes").addEventListener("click", refreshNotes);
 $("refresh-tasks").addEventListener("click", refreshTasks);
 $("refresh-brains").addEventListener("click", refreshBrains);

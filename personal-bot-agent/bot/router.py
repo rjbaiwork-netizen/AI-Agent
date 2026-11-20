@@ -76,6 +76,24 @@ def route(message):
         raise ValueError("message must be a non-empty string")
     if len(message) > 8000:
         raise ValueError("message cannot exceed 8000 characters")
+    # Explicit JSON commands keep the chat interface usable without ambiguous free-text parsing.
+    for prefix, operation in (("brain update ", "manual"), ("brain online ", "online")):
+        if message.casefold().startswith(prefix):
+            try:
+                payload = json.loads(message[len(prefix):])
+                if not isinstance(payload, dict):
+                    raise ValueError("Command payload must be a JSON object")
+                if operation == "manual":
+                    from agent.brain_updates import update_topic
+                    result = update_topic(payload.get("topic"), payload.get("content"), payload.get("brain_file", "project_logic.md"))
+                else:
+                    from agent.brain_updates import update_from_url
+                    result = update_from_url(payload.get("topic"), payload.get("url"), payload.get("brain_file", "research_live.md"), payload.get("timeout", 12))
+                append_trace("brain_chat_command", {"operation": operation, "brain_file": result.get("brain_file"), "topic": result.get("topic")}, source="bot.router")
+                return {"reply": "ব্রেন আপডেট ও SHA-256 re-verification সফল হয়েছে।", "intent": "brain_update" if operation == "manual" else "brain_online_update", "handled_by": "bot", "data": result, "meta": {"ok": True}}
+            except Exception as exc:
+                append_trace("brain_chat_command", {"operation": operation, "error_type": type(exc).__name__, "error": str(exc)[:400]}, status="error", source="bot.router")
+                return {"reply": f"ব্রেন আপডেট ব্যর্থ: {exc}", "intent": "brain_update" if operation == "manual" else "brain_online_update", "handled_by": "bot", "data": None, "meta": {"ok": False, "error": str(exc)}}
     rules = _load_rules()
     normalized = message.casefold()
     selected = None

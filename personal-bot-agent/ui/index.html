@@ -83,6 +83,26 @@
         </section>
       </div>
 
+      <section class="panel" aria-labelledby="brain-training-heading">
+        <div class="section-heading"><div><p class="eyebrow">KNOWLEDGE MANAGEMENT</p><h2 id="brain-training-heading">Brain training &amp; live research</h2></div></div>
+        <p class="muted">Save supplied knowledge to one of the seven verified brain documents, or retrieve a public HTTPS document. Live retrieval requires ALLOW_LIVE_FETCH=true on the backend. Retrieved text is source-extracted, not independently fact-checked.</p>
+        <form id="brain-update-form" class="stack-form">
+          <h3>Topic-based brain update</h3>
+          <label for="brain-topic">Topic</label><input id="brain-topic" maxlength="160" required placeholder="e.g. Flask API security">
+          <label for="brain-file">Target brain</label><select id="brain-file"><option value="project_logic.md">Project logic</option><option value="coding_security.md">Coding &amp; security</option><option value="common_base.md">Common base</option><option value="notes_routine.md">Notes routine</option><option value="logs_issues.md">Logs &amp; issues</option><option value="research_live.md">Research &amp; live sources</option><option value="writing_drafts.md">Writing &amp; drafts</option></select>
+          <label for="brain-content">New knowledge, rules, patterns or problem-solving logic</label><textarea id="brain-content" rows="5" maxlength="20000" required placeholder="Write the knowledge to preserve. Never include API keys or passwords."></textarea>
+          <button id="save-brain-update" class="button primary" type="submit">Save knowledge &amp; verify</button>
+        </form>
+        <form id="brain-online-form" class="stack-form">
+          <h3>Live online source update</h3>
+          <label for="online-topic">Topic</label><input id="online-topic" maxlength="160" required placeholder="e.g. Python 3.14 documentation">
+          <label for="online-url">Public HTTPS documentation URL</label><input id="online-url" type="url" inputmode="url" required placeholder="https://docs.python.org/3/">
+          <label for="online-brain-file">Target brain</label><select id="online-brain-file"><option value="research_live.md">Research &amp; live sources</option><option value="coding_security.md">Coding &amp; security</option><option value="project_logic.md">Project logic</option><option value="common_base.md">Common base</option><option value="notes_routine.md">Notes routine</option><option value="logs_issues.md">Logs &amp; issues</option><option value="writing_drafts.md">Writing &amp; drafts</option></select>
+          <button id="fetch-brain-source" class="button primary" type="submit">Fetch source &amp; save</button>
+        </form>
+        <p id="brain-update-status" class="backend-help" aria-live="polite">No brain update has been requested.</p>
+      </section>
+
       <section class="panel">
         <div class="section-heading"><div><p class="eyebrow">KNOWLEDGE INTEGRITY</p><h2>7 Brains Verification</h2></div><div class="section-actions"><button id="refresh-brains" class="button small secondary" type="button">Refresh</button><button id="reverify-brains" class="button secondary" type="button">Re-verify</button></div></div>
         <div class="tabs" role="tablist" aria-label="System detail panels">

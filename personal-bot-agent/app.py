@@ -15,6 +15,7 @@ from bot.router import route as route_message
 from bot.tracer import append_trace, read_traces
 from agent.reverify import get_brain_snapshot, reverify_all_brains
 from agent.unified_brain import handle_request
+from agent.brain_updates import update_topic, update_from_url
 
 ROOT = Path(__file__).resolve().parent
 UI_DIR = ROOT / "ui"
@@ -233,6 +234,43 @@ def tasks_complete(task_id):
     except Exception:
         app.logger.exception("Could not complete task")
         return _error("Could not update task.", 500)
+
+
+@app.post("/api/brains/update")
+def brains_update():
+    try:
+        payload = _json_body()
+        result = update_topic(
+            payload.get("topic"), payload.get("content"),
+            payload.get("brain_file", "project_logic.md"),
+        )
+        return jsonify({"ok": True, "result": result}), 200
+    except (ValueError, TypeError) as exc:
+        return _error(exc, 400)
+    except Exception as exc:
+        app.logger.exception("Topic-based brain update failed")
+        return _error(str(exc), 502)
+
+
+@app.post("/api/brains/update-online")
+def brains_update_online():
+    try:
+        payload = _json_body()
+        result = update_from_url(
+            payload.get("topic"), payload.get("url"),
+            payload.get("brain_file", "research_live.md"),
+            payload.get("timeout", 12),
+        )
+        return jsonify({"ok": True, "result": result}), 200
+    except (ValueError, TypeError) as exc:
+        return _error(exc, 400)
+    except PermissionError as exc:
+        return _error(exc, 403)
+    except TimeoutError as exc:
+        return _error(exc, 504)
+    except Exception as exc:
+        app.logger.exception("Online brain update failed")
+        return _error(str(exc), 502)
 
 
 @app.get("/api/brains")
