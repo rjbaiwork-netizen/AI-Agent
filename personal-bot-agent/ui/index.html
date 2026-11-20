@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101827">
   <title>Personal Bot Agent</title>
-  <link rel="stylesheet" href="/ui/styles.css">
-  <script src="/ui/app.js" defer></script>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -59,7 +59,7 @@
 
       <div class="two-column">
         <section class="panel">
-          <div class="section-heading"><div><p class="eyebrow">PERSONAL MEMORY</p><h2>Notes Manager</h2></div><span id="notes-count" class="count">0</span></div>
+          <div class="section-heading"><div><p class="eyebrow">PERSONAL MEMORY</p><h2>Notes Manager</h2></div><div class="section-actions"><span id="notes-count" class="count">0</span><button id="refresh-notes" class="button small secondary" type="button">Refresh notes</button></div></div>
           <form id="note-form" class="stack-form">
             <label for="note-title">Title</label><input id="note-title" maxlength="300" placeholder="Note title" required>
             <label for="note-content">Content</label><textarea id="note-content" rows="3" maxlength="10000" placeholder="Write your note…" required></textarea>
@@ -70,7 +70,7 @@
         </section>
 
         <section class="panel">
-          <div class="section-heading"><div><p class="eyebrow">PERSONAL WORKFLOW</p><h2>Tasks Manager</h2></div><span id="tasks-count" class="count">0</span></div>
+          <div class="section-heading"><div><p class="eyebrow">PERSONAL WORKFLOW</p><h2>Tasks Manager</h2></div><div class="section-actions"><span id="tasks-count" class="count">0</span><button id="refresh-tasks" class="button small secondary" type="button">Refresh tasks</button></div></div>
           <form id="task-form" class="stack-form">
             <label for="task-title">Task title</label><input id="task-title" maxlength="500" placeholder="What needs to be done?" required>
             <div class="form-grid">
@@ -84,7 +84,7 @@
       </div>
 
       <section class="panel">
-        <div class="section-heading"><div><p class="eyebrow">KNOWLEDGE INTEGRITY</p><h2>Brains &amp; Logs</h2></div><button id="reverify-brains" class="button secondary" type="button">Re-verify brains</button></div>
+        <div class="section-heading"><div><p class="eyebrow">KNOWLEDGE INTEGRITY</p><h2>7 Brains Verification</h2></div><div class="section-actions"><button id="refresh-brains" class="button small secondary" type="button">Refresh</button><button id="reverify-brains" class="button secondary" type="button">Re-verify</button></div></div>
         <div class="tabs" role="tablist" aria-label="System detail panels">
           <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="brains-panel">Brains</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="logs-panel">Logs &amp; traces</button>
