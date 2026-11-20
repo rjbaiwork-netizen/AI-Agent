@@ -101,7 +101,7 @@ async function refreshHealth() {
     const data = await api("/api/health");
     $("health-label").textContent = data.status || (data.ok ? "System healthy" : "System degraded");
     $("health-indicator").className = "status-dot " + (data.ok ? "ok" : "error");
-    updateBackendStatus("Backend health check succeeded.", true);
+    updateBackendStatus(data.ok ? "Backend health check succeeded." : "Backend responded, but its health check reports a problem.", Boolean(data.ok));
     const config = data.configuration || {};
     $("gemini-label").textContent = "Gemini: " + (config.gemini_configured ? "configured" : "not configured");
     if (!data.ok) showError((data.system?.errors || []).join(" · ") || "System health is degraded.");
@@ -156,8 +156,10 @@ function renderNotes() {
   }
 }
 async function refreshNotes() {
+  setBusy("refresh-notes", true, "Refreshing…");
   try { const data = await api("/api/notes"); state.notes = Array.isArray(data.notes) ? data.notes : []; renderNotes(); }
   catch (error) { showEmpty("notes-list", error.message); showError(error.message); }
+  finally { setBusy("refresh-notes", false); }
 }
 function renderTasks() {
   $("tasks-count").textContent = String(state.tasks.length);
@@ -183,10 +185,13 @@ function renderTasks() {
   }
 }
 async function refreshTasks() {
+  setBusy("refresh-tasks", true, "Refreshing…");
   try { const data = await api("/api/tasks"); state.tasks = Array.isArray(data.tasks) ? data.tasks : []; renderTasks(); }
   catch (error) { showEmpty("tasks-list", error.message); showError(error.message); }
+  finally { setBusy("refresh-tasks", false); }
 }
 async function refreshBrains() {
+  setBusy("refresh-brains", true, "Refreshing…");
   try {
     const data = await api("/api/brains");
     state.brains = data.snapshot;
@@ -197,13 +202,15 @@ async function refreshBrains() {
       item.append(element("span", "badge " + (info.status === "verified" ? "ok" : "error"), info.status));
       list.append(item);
     }
+    if (!list.children.length) showEmpty("brains-list", "The backend returned no brain-file records.");
     $("brain-report").textContent = JSON.stringify(data.snapshot, null, 2);
   } catch (error) {
     showEmpty("brains-list", error.message);
     $("brain-report").textContent = error.message;
-  }
+  } finally { setBusy("refresh-brains", false); }
 }
 async function refreshLogs() {
+  setBusy("refresh-logs", true, "Refreshing…");
   try {
     const data = await api("/api/logs?lines=100&traces=100");
     state.logs = data;
@@ -212,7 +219,7 @@ async function refreshLogs() {
   } catch (error) {
     $("bot-log").textContent = error.message;
     $("trace-log").textContent = error.message;
-  }
+  } finally { setBusy("refresh-logs", false); }
 }
 $("chat-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -281,6 +288,9 @@ $("clear-backend").addEventListener("click", async () => {
   await refreshHealth();
 });
 $("refresh-status").addEventListener("click", refreshHealth);
+$("refresh-notes").addEventListener("click", refreshNotes);
+$("refresh-tasks").addEventListener("click", refreshTasks);
+$("refresh-brains").addEventListener("click", refreshBrains);
 $("refresh-logs").addEventListener("click", refreshLogs);
 $("reverify-brains").addEventListener("click", async () => {
   clearError(); setBusy("reverify-brains", true, "Verifying…");
@@ -300,6 +310,13 @@ async function initialize() {
   await refreshHealth();
   if ($("backend-connection-state").textContent === "Connected") {
     await Promise.allSettled([refreshNotes(), refreshTasks(), refreshBrains(), refreshLogs()]);
+  } else {
+    showEmpty("notes-list", "Connect the Flask backend to load saved notes.");
+    showEmpty("tasks-list", "Connect the Flask backend to load tasks.");
+    showEmpty("brains-list", "Connect the Flask backend to verify the seven brain files.");
+    $("brain-report").textContent = "Backend not connected.";
+    $("bot-log").textContent = "Connect the backend to view bot.log.";
+    $("trace-log").textContent = "Connect the backend to view trace.jsonl.";
   }
 }
 initialize();
